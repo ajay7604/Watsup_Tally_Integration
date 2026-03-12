@@ -21,38 +21,57 @@ public class WhatsAppServiceImpl implements WhatsAppService {
 
     @Override
     public void sendMessage(String to, String message) {
+
         try {
+
+            // FIX 1: Escape newline characters for JSON
+            message = message.replace("\n", "\\n");
+
             URL url = new URL("https://graph.facebook.com/v18.0/" + phoneId + "/messages");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Authorization", "Bearer " + token);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
 
             String body = """
-            {
-              "messaging_product": "whatsapp",
-              "to": "%s",
-              "type": "text",
-              "text": {
-                "body": "%s"
-              }
-            }
-            """.formatted(to, message);
+        {
+          "messaging_product": "whatsapp",
+          "to": "%s",
+          "type": "text",
+          "text": {
+            "body": "%s"
+          }
+        }
+        """.formatted(to, message);
 
+            // Send request
             OutputStream os = conn.getOutputStream();
             os.write(body.getBytes());
             os.flush();
 
-            // Print response for debugging
-            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            int responseCode = conn.getResponseCode();
+
+            BufferedReader br;
+
+            // FIX 2: Read correct stream based on response code
+            if (responseCode >= 200 && responseCode < 300) {
+                br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            } else {
+                br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+            }
+
             String line;
-            while((line = br.readLine()) != null){
+            while ((line = br.readLine()) != null) {
                 System.out.println("WhatsApp API Response: " + line);
             }
+
+            br.close();
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+
     }
 }

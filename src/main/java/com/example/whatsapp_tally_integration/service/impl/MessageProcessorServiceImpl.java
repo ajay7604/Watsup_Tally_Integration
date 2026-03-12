@@ -37,22 +37,42 @@ public class MessageProcessorServiceImpl implements MessageProcessorService {
 
         System.out.println("Message received: " + body);
 
-        // Handle stock queries
+
+
+        //  HANDLE "stock all"
+        if(body.equalsIgnoreCase("stock all")){
+
+            String stock = tallyService.getAllStock();
+
+            System.out.println("Stock ALL response from Tally: " + stock);
+
+
+            if(stock == null || stock.isEmpty()){
+                stock = "Unable to fetch inventory from Tally";
+            }
+
+            whatsAppService.sendMessage(from, stock);
+            return;
+        }
+        //  HANDLE "stock rice" etc
         if(body.toLowerCase().startsWith("stock")){
+
             String item = body.replaceFirst("(?i)stock", "").trim();
+
             if(item.isEmpty()){
-                whatsAppService.sendMessage(from, "Please specify an item name, e.g., 'stock rice'");
+                whatsAppService.sendMessage(from,
+                        "Please specify an item name, e.g., 'stock rice'");
                 return;
             }
 
             String stock = tallyService.getStock(item);
-            System.out.println("Sending stock info to WhatsApp: " + stock);
+
             if(stock == null || stock.isEmpty()){
                 stock = "Unable to fetch stock from Tally";
             }
 
-            System.out.println("Sending stock info to WhatsApp: " + stock);
+            whatsAppService.sendMessage(from , stock);
 
-            whatsAppService.sendMessage(from , stock);        }
+        }
     }
 }

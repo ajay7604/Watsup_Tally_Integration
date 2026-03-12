@@ -81,6 +81,98 @@ public class TallyServiceImpl implements TallyService {
         return "Unable to fetch stock for " + itemName;
     }
 
+    @Override
+    public String getAllStock() {
+
+        try {
+
+            String xml = """
+        <ENVELOPE>
+          <HEADER>
+            <TALLYREQUEST>Export Data</TALLYREQUEST>
+          </HEADER>
+          <BODY>
+            <EXPORTDATA>
+              <REQUESTDESC>
+                <REPORTNAME>Stock Summary</REPORTNAME>
+                <STATICVARIABLES>
+                  <SVCURRENTCOMPANY>%s</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+              </REQUESTDESC>
+            </EXPORTDATA>
+          </BODY>
+        </ENVELOPE>
+        """.formatted(companyName);
+
+            URL url = new URL(tallyUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+
+            OutputStream os = conn.getOutputStream();
+            os.write(xml.getBytes());
+            os.flush();
+
+            BufferedReader br =
+                    new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while ((line = br.readLine()) != null) {
+                response.append(line);
+            }
+
+            return extractAllStock(response.toString());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return "Unable to fetch inventory from Tally";
+    }
+
+    private String extractAllStock(String xml) {
+
+        try {
+
+            // Remove invalid XML characters from Tally
+            xml = xml.replaceAll("[^\\x09\\x0A\\x0D\\x20-\\x7F]", "");
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+
+            Document doc = builder.parse(new InputSource(new StringReader(xml)));
+
+            NodeList itemNames = doc.getElementsByTagName("DSPDISPNAME");
+            NodeList qtyList = doc.getElementsByTagName("DSPCLQTY");
+
+            StringBuilder result = new StringBuilder();
+
+            result.append("Inventory List:\n\n");
+
+            for (int i = 0; i < itemNames.getLength() && i < qtyList.getLength(); i++) {
+
+                String item = itemNames.item(i).getTextContent().trim();
+
+                String qtyText = qtyList.item(i).getTextContent().trim();
+                String[] parts = qtyText.split("\\s+");
+
+                result.append(item)
+                        .append(" : ")
+                        .append(parts[0])
+                        .append("\n");
+            }
+
+            return result.toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return "Unable to parse inventory";
+    }
+
     private String extractStockFromXml(String xml, String itemName) {
         try {
 
