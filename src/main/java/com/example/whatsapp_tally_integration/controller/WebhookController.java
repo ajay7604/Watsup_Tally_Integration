@@ -32,11 +32,8 @@ public class WebhookController {
 
     @PostMapping
     public ResponseEntity<?> receiveMessage(@RequestBody Map<String, Object> payload) {
-
         System.out.println("Incoming Webhook Payload: " + payload);
-
         messageProcessorService.processMessage(payload);
-
         return ResponseEntity.ok().build();
     }
 }

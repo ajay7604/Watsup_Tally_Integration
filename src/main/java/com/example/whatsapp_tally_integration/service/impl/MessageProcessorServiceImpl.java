@@ -28,82 +28,31 @@ public class MessageProcessorServiceImpl implements MessageProcessorService {
         Map value = (Map)changes.get("value");
 
         List messages = (List)value.get("messages");
-
         if(messages == null) return;
 
         Map message = (Map)messages.get(0);
-
         String from = (String)message.get("from");
-
         Map text = (Map)message.get("text");
-
         String body = (String)text.get("body");
 
         System.out.println("Message received: " + body);
 
-        if(body.toLowerCase().contains("stock")){
-
-            String item = body.replace("stock","").trim();
+        // Handle stock queries
+        if(body.toLowerCase().startsWith("stock")){
+            String item = body.replaceFirst("(?i)stock", "").trim();
+            if(item.isEmpty()){
+                whatsAppService.sendMessage(from, "Please specify an item name, e.g., 'stock rice'");
+                return;
+            }
 
             String stock = tallyService.getStock(item);
-            System.out.println("Fetching stock from Tally for item: " + item);
+            System.out.println("Sending stock info to WhatsApp: " + stock);
+            if(stock == null || stock.isEmpty()){
+                stock = "Unable to fetch stock from Tally";
+            }
 
-            whatsAppService.sendMessage(from , stock);
+            System.out.println("Sending stock info to WhatsApp: " + stock);
 
-
-        }
+            whatsAppService.sendMessage(from , stock);        }
     }
 }
-
-
-
-
-
-
-
-
-//public class MessageProcessorServiceImpl implements MessageProcessorService {
-//
-//
-//    @Autowired
-//    private TallyService tallyService;
-//
-//    @Autowired
-//    private WhatsAppService whatsAppService;
-//
-//    @Override
-//    public void processMessage(Map<String, Object> payload) {
-//        try {
-//
-//            Map entry = (Map) ((List) payload.get("entry")).get(0);
-//            Map changes = (Map) ((List) entry.get("changes")).get(0);
-//            Map value = (Map) changes.get("value");
-//
-//            List messages = (List) value.get("messages");
-//
-//            if (messages == null) return;
-//
-//            Map message = (Map) messages.get(0);
-//
-//            String from = (String) message.get("from");
-//            Map textObj = (Map) message.get("text");
-//
-//            String messageText = (String) textObj.get("body");
-//
-//            System.out.println("Message received: " + messageText);
-//
-//            if (messageText.startsWith("stock")) {
-//
-//                String item = messageText.replace("stock", "").trim();
-//
-//                String stock = tallyService.getStock(item);
-//
-//                whatsAppService.sendMessage(from, stock);
-//            }
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-//    }
-

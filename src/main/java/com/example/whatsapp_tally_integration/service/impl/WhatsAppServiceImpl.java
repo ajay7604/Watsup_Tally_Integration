@@ -20,19 +20,13 @@ public class WhatsAppServiceImpl implements WhatsAppService {
     private String phoneId;
 
     @Override
-    public void sendMessage(String from, String stock) {
-
+    public void sendMessage(String to, String message) {
         try {
-
-            URL url = new URL(
-                    "https://graph.facebook.com/v18.0/" + phoneId + "/messages");
-
+            URL url = new URL("https://graph.facebook.com/v18.0/" + phoneId + "/messages");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Authorization", "Bearer " + token);
             conn.setRequestProperty("Content-Type", "application/json");
-
             conn.setDoOutput(true);
 
             String body = """
@@ -44,16 +38,14 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 "body": "%s"
               }
             }
-            """.formatted(from, stock);
+            """.formatted(to, message);
 
             OutputStream os = conn.getOutputStream();
             os.write(body.getBytes());
             os.flush();
 
-            // Print WhatsApp API response
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream()));
-
+            // Print response for debugging
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             String line;
             while((line = br.readLine()) != null){
                 System.out.println("WhatsApp API Response: " + line);
