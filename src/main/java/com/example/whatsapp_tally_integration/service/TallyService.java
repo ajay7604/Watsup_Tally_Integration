@@ -4,4 +4,6 @@ public interface TallyService {
     String getStock(String item);
 
     String getAllStock();
+
+    String updateStock(String item, double qty);
 }

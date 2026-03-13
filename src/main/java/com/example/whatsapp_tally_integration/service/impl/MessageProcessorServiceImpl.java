@@ -54,6 +54,42 @@ public class MessageProcessorServiceImpl implements MessageProcessorService {
             whatsAppService.sendMessage(from, stock);
             return;
         }
+
+        // HANDLE stock update (add or reduce)
+        if(body.toLowerCase().startsWith("stock") && (body.contains("-") || body.contains("+"))) {
+
+            try {
+
+                String command = body.replaceFirst("(?i)stock", "").trim();
+
+                String item;
+                double qty;
+
+                if(command.contains("-")) {
+                    String[] parts = command.split("-");
+                    item = parts[0].trim();
+                    qty = -Double.parseDouble(parts[1].trim());  // negative means reduce
+                }
+                else {
+                    String[] parts = command.split("\\+");
+                    item = parts[0].trim();
+                    qty = Double.parseDouble(parts[1].trim());   // positive means add
+                }
+
+                String response = tallyService.updateStock(item, qty);
+
+                whatsAppService.sendMessage(from , response);
+
+            }
+            catch(Exception e) {
+
+                whatsAppService.sendMessage(from,
+                        "Invalid format.\nExamples:\nstock corn-50\nstock corn+50");
+            }
+
+            return;
+        }
+
         //  HANDLE "stock rice" etc
         if(body.toLowerCase().startsWith("stock")){
 

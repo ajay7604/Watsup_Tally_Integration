@@ -132,6 +132,98 @@ public class TallyServiceImpl implements TallyService {
         return "Unable to fetch inventory from Tally";
     }
 
+    @Override
+    public String updateStock(String itemName , double qty) {
+
+        try {
+
+            String stockText = getStock(itemName);
+
+            if(stockText.contains("Stock not found")) {
+                return "Item not found: " + itemName;
+            }
+
+            String currentQtyStr = stockText.replaceAll("[^0-9.]", "");
+            double currentQty = Double.parseDouble(currentQtyStr);
+
+            double newQty = currentQty + qty;
+
+            if(newQty < 0) {
+                return "Not enough stock.\nAvailable: " + currentQty;
+            }
+
+            String xml = """
+        <ENVELOPE>
+          <HEADER>
+            <TALLYREQUEST>Import Data</TALLYREQUEST>
+          </HEADER>
+          <BODY>
+            <IMPORTDATA>
+              <REQUESTDESC>
+                <REPORTNAME>Vouchers</REPORTNAME>
+                <STATICVARIABLES>
+                  <SVCURRENTCOMPANY>%s</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+              </REQUESTDESC>
+              <REQUESTDATA>
+                <TALLYMESSAGE>
+                  <VOUCHER VCHTYPE="Stock Journal" ACTION="Create">
+                    <DATE>%s</DATE>
+
+                    <STOCKJOURNALENTRIES.LIST>
+                      <STOCKITEMNAME>%s</STOCKITEMNAME>
+                      <ACTUALQTY>%s Nos</ACTUALQTY>
+                      <BILLEDQTY>%s Nos</BILLEDQTY>
+                    </STOCKJOURNALENTRIES.LIST>
+
+                  </VOUCHER>
+                </TALLYMESSAGE>
+              </REQUESTDATA>
+            </IMPORTDATA>
+          </BODY>
+        </ENVELOPE>
+        """.formatted(
+                    companyName,
+                    java.time.LocalDate.now().toString().replace("-", ""),
+                    itemName,
+                    qty,
+                    qty
+            );
+
+            URL url = new URL(tallyUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+
+            OutputStream os = conn.getOutputStream();
+            os.write(xml.getBytes());
+            os.flush();
+
+            BufferedReader br =
+                    new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            while(br.readLine() != null){}
+
+            String action = qty > 0 ? "Added" : "Reduced";
+
+            return """
+Stock Updated Successfully
+
+Item : %s
+Previous Stock : %s
+%s : %s
+Current Stock : %s
+""".formatted(itemName , currentQty , action , Math.abs(qty) , newQty);
+
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        return "Failed to update stock";
+    }
+
     private String extractAllStock(String xml) {
 
         try {
