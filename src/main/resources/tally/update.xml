@@ -1,0 +1,56 @@
+<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+
+    <BODY>
+        <IMPORTDATA>
+
+            <REQUESTDESC>
+                <REPORTNAME>Vouchers</REPORTNAME>
+                <STATICVARIABLES>
+                    <SVCURRENTCOMPANY>%s</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+            </REQUESTDESC>
+
+            <REQUESTDATA>
+
+                <TALLYMESSAGE>
+
+                    <VOUCHER VCHTYPE="Stock Journal" ACTION="Create">
+
+                        <DATE>%s</DATE>
+                        <EFFECTIVEDATE>%s</EFFECTIVEDATE>
+                        <VOUCHERTYPENAME>Stock Journal</VOUCHERTYPENAME>
+                        <ISINVENTORYVOUCHER>Yes</ISINVENTORYVOUCHER>
+                        <NARRATION>WhatsApp Inventory Update</NARRATION>
+
+                        <!-- Stock OUT -->
+                        <INVENTORYENTRIESOUT.LIST>
+                            <STOCKITEMNAME>%s</STOCKITEMNAME>
+                            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                            <ACTUALQTY>%s Nos</ACTUALQTY>
+                            <BILLEDQTY>%s Nos</BILLEDQTY>
+                            <RATE>0</RATE>
+                            <AMOUNT>0</AMOUNT>
+                        </INVENTORYENTRIESOUT.LIST>
+
+                        <!-- Stock IN -->
+                        <INVENTORYENTRIESIN.LIST>
+                            <STOCKITEMNAME>%s</STOCKITEMNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <ACTUALQTY>%s Nos</ACTUALQTY>
+                            <BILLEDQTY>%s Nos</BILLEDQTY>
+                            <RATE>0</RATE>
+                            <AMOUNT>0</AMOUNT>
+                        </INVENTORYENTRIESIN.LIST>
+
+                    </VOUCHER>
+
+                </TALLYMESSAGE>
+
+            </REQUESTDATA>
+
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>

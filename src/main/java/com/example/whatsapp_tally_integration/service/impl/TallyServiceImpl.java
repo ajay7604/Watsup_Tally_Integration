@@ -4,11 +4,10 @@ import com.example.whatsapp_tally_integration.service.TallyService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -16,8 +15,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
-
-import java.io.StringReader;
 
 @Service
 public class TallyServiceImpl implements TallyService {
@@ -31,24 +28,11 @@ public class TallyServiceImpl implements TallyService {
     @Override
     public String getStock(String itemName) {
         try {
-            String xml = """
-            <ENVELOPE>
-              <HEADER>
-                <TALLYREQUEST>Export Data</TALLYREQUEST>
-              </HEADER>
-              <BODY>
-                <EXPORTDATA>
-                  <REQUESTDESC>
-                    <REPORTNAME>Stock Summary</REPORTNAME>
-                    <STATICVARIABLES>
-                      <SVCURRENTCOMPANY>%s</SVCURRENTCOMPANY>
-                      <STOCKITEMNAME>%s</STOCKITEMNAME>
-                    </STATICVARIABLES>
-                  </REQUESTDESC>
-                </EXPORTDATA>
-              </BODY>
-            </ENVELOPE>
-            """.formatted(companyName, itemName);
+            //  Load XML template from resources
+            String xmlTemplate = loadXml("getStock.xml");
+
+            //  Replace placeholders
+            String xml = xmlTemplate.formatted(companyName, itemName);
 
             URL url = new URL(tallyUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -86,23 +70,12 @@ public class TallyServiceImpl implements TallyService {
 
         try {
 
-            String xml = """
-        <ENVELOPE>
-          <HEADER>
-            <TALLYREQUEST>Export Data</TALLYREQUEST>
-          </HEADER>
-          <BODY>
-            <EXPORTDATA>
-              <REQUESTDESC>
-                <REPORTNAME>Stock Summary</REPORTNAME>
-                <STATICVARIABLES>
-                  <SVCURRENTCOMPANY>%s</SVCURRENTCOMPANY>
-                </STATICVARIABLES>
-              </REQUESTDESC>
-            </EXPORTDATA>
-          </BODY>
-        </ENVELOPE>
-        """.formatted(companyName);
+            //  Load XML template from resources
+            String xmlTemplate = loadXml("getallstock.xml");
+
+            //  Replace placeholders
+            String xml = xmlTemplate.formatted(companyName);
+
 
             URL url = new URL(tallyUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -151,50 +124,36 @@ public class TallyServiceImpl implements TallyService {
             if(newQty < 0) {
                 return "Not enough stock.\nAvailable: " + currentQty;
             }
+            String date = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-            String xml = """
-        <ENVELOPE>
-          <HEADER>
-            <TALLYREQUEST>Import Data</TALLYREQUEST>
-          </HEADER>
-          <BODY>
-            <IMPORTDATA>
-              <REQUESTDESC>
-                <REPORTNAME>Vouchers</REPORTNAME>
-                <STATICVARIABLES>
-                  <SVCURRENTCOMPANY>%s</SVCURRENTCOMPANY>
-                </STATICVARIABLES>
-              </REQUESTDESC>
-              <REQUESTDATA>
-                <TALLYMESSAGE>
-                  <VOUCHER VCHTYPE="Stock Journal" ACTION="Create">
-                    <DATE>%s</DATE>
+            // 1 Load XML template
+            String xmlTemplate = loadXml("update.xml");
 
-                    <STOCKJOURNALENTRIES.LIST>
-                      <STOCKITEMNAME>%s</STOCKITEMNAME>
-                      <ACTUALQTY>%s Nos</ACTUALQTY>
-                      <BILLEDQTY>%s Nos</BILLEDQTY>
-                    </STOCKJOURNALENTRIES.LIST>
-
-                  </VOUCHER>
-                </TALLYMESSAGE>
-              </REQUESTDATA>
-            </IMPORTDATA>
-          </BODY>
-        </ENVELOPE>
-        """.formatted(
+            // 2 Replace placeholders
+            String xml = xmlTemplate.formatted(
                     companyName,
-                    java.time.LocalDate.now().toString().replace("-", ""),
+                    date,
+                    date,
                     itemName,
-                    qty,
-                    qty
+                    Math.abs(qty),
+                    Math.abs(qty),
+                    itemName,
+                    Math.abs(qty),
+                    Math.abs(qty)
             );
+
+
+            // Debug XML
+//            System.out.println("XML SENT TO TALLY:");
+//            System.out.println(xml);
 
             URL url = new URL(tallyUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "text/xml");
 
             OutputStream os = conn.getOutputStream();
             os.write(xml.getBytes());
@@ -203,7 +162,21 @@ public class TallyServiceImpl implements TallyService {
             BufferedReader br =
                     new BufferedReader(new InputStreamReader(conn.getInputStream()));
 
-            while(br.readLine() != null){}
+          //  while(br.readLine() != null){}
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while((line = br.readLine()) != null){
+                response.append(line);
+            }
+
+            System.out.println("Tally Response: " + response);
+
+            // Fetch updated stock from Tally again
+            String updatedStockText = getStock(itemName);
+            String updatedStock = updatedStockText.replaceAll("[^0-9.]", "");
+
+
 
             String action = qty > 0 ? "Added" : "Reduced";
 
@@ -214,7 +187,7 @@ Item : %s
 Previous Stock : %s
 %s : %s
 Current Stock : %s
-""".formatted(itemName , currentQty , action , Math.abs(qty) , newQty);
+""".formatted(itemName , currentQty , action , Math.abs(qty) , newQty,updatedStock);
 
         }
         catch(Exception e) {
@@ -295,5 +268,21 @@ Current Stock : %s
         }
 
         return "Stock not found";
+    }
+    private String loadXml(String fileName) {
+        try {
+            InputStream inputStream = getClass()
+                    .getClassLoader()
+                    .getResourceAsStream("tally/" + fileName);
+
+            if (inputStream == null) {
+                throw new RuntimeException("XML file not found in resources");
+            }
+
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error reading XML file", e);
+        }
     }
 }
